@@ -1,0 +1,50 @@
+#python
+__pycache__/           # Python 字节码缓存目录
+*.py[cod]              # 编译后的Python文件：.pyc, .pyo, .pyd
+*$py.class             # Jython 编译文件
+*.so                   # C扩展模块（编译后的共享库）
+
+# Python 包构建和分发
+build/
+dist/
+*.egg-info/
+*.egg
+sdist/
+wheels/
+
+# setuptools 和开发文件
+develop-eggs/
+eggs/
+.eggs/
+.installed.cfg
+
+# 依赖缓存和本地库
+downloads/
+lib/
+lib64/
+parts/
+var/
+
+# Python环境
+.Python
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 编辑器临时文件
+*.swp
+*.swo
+*~
+
+# 项目运行数据
+data/*.db
+
+# 环境变量
+.env
