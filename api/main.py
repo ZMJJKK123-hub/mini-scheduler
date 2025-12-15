@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from typing import List
 from common.models import Task
 from common.db import create_task, list_tasks, init_db
+import threading
+from scheduler.scheduler import run_scheduler
 
 app=FastAPI()
 
@@ -24,4 +26,7 @@ def create_new_task(task: TaskCreateRequest):
 def get_all_tasks():
     tasks = list_tasks()
     return tasks
+
+scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+scheduler_thread.start()
 
