@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>执行详情 #{{ execution.id }} | 任务调度系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-light: #4cc9f0;
+            --secondary: #3a0ca3;
+            --success: #38b000;
+            --warning: #f8961e;
+            --danger: #f72585;
+            --dark: #121212;
+            --dark-light: #1e1e1e;
+            --darker: #0a0a0a;
+            --light: #ffffff;
+            --gray: #888888;
+            --border: #333333;
+            --code-bg: #1a1a1a;
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.4);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: linear-gradient(135deg, #000000 0%, #1a1a2e 50%, #16213e 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 终端效果背景 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(67, 97, 238, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(247, 37, 133, 0.05) 0%, transparent 20%),
+                repeating-linear-gradient(0deg, transparent 0px, rgba(255, 255, 255, 0.01) 1px, transparent 2px);
+            z-index: -2;
+        }
+
+        /* 矩阵雨效果 */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="1" height="1" fill="rgba(255,255,255,0.02)"/></svg>');
+            opacity: 0.3;
+            z-index: -1;
+            animation: matrix 20s linear infinite;
+        }
+
+        @keyframes matrix {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 20px; }
+        }
+
+        /* 导航栏 */
+        .terminal-nav {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(67, 97, 238, 0.3);
+            padding: 0 30px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .terminal-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-icon::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .terminal-icon i {
+            font-size: 1.2rem;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-brand h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .terminal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            font-size: 0.9rem;
+        }
+
+        .terminal-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .terminal-btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            border: 1px solid rgba(67, 97, 238, 0.5);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #b5179e);
+            color: white;
+            box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(247, 37, 133, 0.4);
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        /* 执行头信息 */
+        .execution-header {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .execution-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary));
+        }
+
+        .header-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .execution-title {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .execution-id {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-family: 'Orbitron', monospace;
+            letter-spacing: 2px;
+        }
+
+        .execution-badge {
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+            to { box-shadow: 0 4px 25px; }
+        }
+
+        .badge-success {
+            background: linear-gradient(135deg, var(--success), #2d7d46);
+            color: white;
+            box-shadow: 0 4px 15px rgba(56, 176, 0, 0.3);
+        }
+
+        .badge-failed {
+            background: linear-gradient(135deg, var(--danger), #b5179e);
+            color: white;
+            box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+        }
+
+        .badge-running {
+            background: linear-gradient(135deg, var(--warning), #f3722c);
+            color: white;
+            box-shadow: 0 4px 15px rgba(248, 150, 30, 0.3);
+        }
+
+        .badge-queued {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .header-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .info-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(67, 97, 238, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+        }
+
+        .info-icon i {
+            font-size: 1.2rem;
+            color: var(--primary-light);
+        }
+
+        .info-content {
+            flex: 1;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--light);
+        }
+
+        .info-value.time {
+            font-family: 'Orbitron', monospace;
+            color: var(--primary-light);
+        }
+
+        /* 日志容器 */
+        .logs-container {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .logs-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(67, 97, 238, 0.3);
+        }
+
+        .log-tab {
+            padding: 20px 30px;
+            background: none;
+            border: none;
+            color: var(--gray);
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+
+        .log-tab:hover {
+            color: var(--light);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-tab.active {
+            color: var(--primary-light);
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        .log-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        }
+
+        .log-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .badge-stdout { background: rgba(76, 201, 240, 0.2); color: var(--primary-light); }
+        .badge-stderr { background: rgba(247, 37, 133, 0.2); color: var(--danger); }
+        .badge-error { background: rgba(248, 150, 30, 0.2); color: var(--warning); }
+
+        .logs-content {
+            min-height: 400px;
+            max-height: 600px;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* 终端仿真器 */
+        .terminal-emulator {
+            font-family: 'JetBrains Mono', 'SF Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            padding: 25px;
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            animation: typewriter 0.1s steps(40, end);
+        }
+
+        @keyframes typewriter {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .line-number {
+            color: var(--gray);
+            margin-right: 15px;
+            user-select: none;
+            font-size: 0.85rem;
+        }
+
+        .terminal-prompt {
+            color: var(--primary-light);
+            font-weight: 700;
+        }
+
+        .terminal-command {
+            color: var(--light);
+        }
+
+        .terminal-output {
+            color: #cccccc;
+        }
+
+        .terminal-error {
+            color: var(--danger);
+            background: rgba(247, 37, 133, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: -8px;
+        }
+
+        .terminal-success {
+            color: var(--success);
+            background: rgba(56, 176, 0, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: -8px;
+        }
+
+        /* 空状态 */
+        .logs-empty {
+            text-align: center;
+            padding: 80px 30px;
+            color: var(--gray);
+        }
+
+        .logs-empty i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .logs-empty h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--light);
+        }
+
+        /* 命令预览 */
+        .command-preview {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: var(--shadow);
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .preview-header h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--light);
+        }
+
+        .command-block {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 25px;
+            border-left: 4px solid var(--primary);
+            position: relative;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .command-block::before {
+            content: '$';
+            position: absolute;
+            top: 25px;
+            left: 15px;
+            color: var(--primary-light);
+            font-weight: 700;
+        }
+
+        .command-text {
+            color: #cccccc;
+            margin-left: 25px;
+            word-break: break-all;
+        }
+
+        /* 性能指标 */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(67, 97, 238, 0.4);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(67, 97, 238, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+        }
+
+        .metric-icon i {
+            font-size: 1.5rem;
+            color: var(--primary-light);
+        }
+
+        .metric-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--light);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary-light);
+            margin-bottom: 5px;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        /* 操作面板 */
+        .action-panel {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: var(--shadow);
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .action-btn {
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .action-btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-copy {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 8px 25px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-copy:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(67, 97, 238, 0.4);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--success), #2d7d46);
+            color: white;
+            box-shadow: 0 8px 25px rgba(56, 176, 0, 0.3);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(56, 176, 0, 0.4);
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-back:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .action-icon {
+            font-size: 2rem;
+        }
+
+        .action-label {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .action-desc {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-light);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .terminal-nav {
+                padding: 0 20px;
+                height: 60px;
+            }
+            
+            .nav-brand h1 {
+                font-size: 1.1rem;
+            }
+            
+            .execution-header {
+                padding: 20px;
+            }
+            
+            .header-main {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .execution-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .execution-id {
+                font-size: 2rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .logs-tabs {
+                overflow-x: auto;
+            }
+            
+            .log-tab {
+                padding: 15px 20px;
+                white-space: nowrap;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-actions {
+                display: none;
+            }
+            
+            .header-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .metric-card {
+                padding: 20px;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+            }
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 6px;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+        }
+
+        /* 动画类 */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 打字机效果 */
+        .typewriter {
+            overflow: hidden;
+            border-right: 2px solid var(--primary-light);
+            white-space: nowrap;
+            margin: 0 auto;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: var(--primary-light); }
+        }
+
+        /* 高亮效果 */
+        .highlight {
+            position: relative;
+            display: inline-block;
+        }
+
+        .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.3), rgba(76, 201, 240, 0.3));
+            z-index: -1;
+            transform: skewX(-15deg);
+        }
+
+        /* 代码块样式 */
+        code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .indicator-success { background: var(--success); }
+        .indicator-failed { background: var(--danger); }
+        .indicator-running { background: var(--warning); }
+        .indicator-queued { background: var(--gray); }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="terminal-nav">
+        <div class="nav-brand">
+            <div class="terminal-icon">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <h1>执行终端</h1>
+        </div>
+        <div class="nav-actions">
+            <button class="terminal-btn btn-secondary" onclick="window.location.href='/ui/tasks/{{ execution.task_id }}'">
+                <i class="fas fa-arrow-left"></i>
+                返回任务
+            </button>
+            <button class="terminal-btn btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i>
+                刷新数据
+            </button>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 执行头信息 -->
+        <div class="execution-header fade-in">
+            <div class="header-main">
+                <div class="execution-title">
+                    <div class="execution-id">#{{ execution.id }}</div>
+                    <div class="execution-badge badge-{{ execution.status|lower }}">
+                        {% if execution.status == 'RUNNING' %}
+                            <i class="fas fa-spinner fa-spin"></i>
+                        {% elif execution.status == 'SUCCESS' %}
+                            <i class="fas fa-check-circle"></i>
+                        {% elif execution.status == 'FAILED' %}
+                            <i class="fas fa-exclamation-circle"></i>
+                        {% else %}
+                            <i class="fas fa-clock"></i>
+                        {% endif %}
+                        {{ execution.status }}
+                    </div>
+                </div>
+                <div>
+                    <span style="color: var(--gray); font-size: 0.9rem;">任务:</span>
+                    <a href="/ui/tasks/{{ execution.task_id }}" style="color: var(--primary-light); text-decoration: none; font-weight: 600; margin-left: 8px;">
+                        <i class="fas fa-external-link-alt" style="margin-right: 5px;"></i>
+                        查看任务详情
+                    </a>
+                </div>
+            </div>
+
+            <div class="header-info">
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-hourglass-start"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-label">开始时间</div>
+                        <div class="info-value time">
+                            {% if execution.started_at %}
+                                {{ execution.started_at[:19] }}
+                            {% else %}
+                                <span style="color: var(--gray);">未开始</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-hourglass-end"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-label">结束时间</div>
+                        <div class="info-value time">
+                            {% if execution.finished_at %}
+                                {{ execution.finished_at[:19] }}
+                            {% else %}
+                                <span style="color: var(--gray);">进行中...</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-label">持续时间</div>
+                        <div class="info-value">
+                            {% if execution.started_at and execution.finished_at %}
+                                <span class="highlight" style="color: var(--primary-light); font-weight: 700;">
+                                    {% set start = execution.started_at|to_datetime %}
+                                    {% set end = execution.finished_at|to_datetime %}
+                                    {% set duration = (end - start).total_seconds() %}
+                                    {% if duration < 60 %}
+                                        {{ duration|int }}秒
+                                    {% elif duration < 3600 %}
+                                        {{ (duration/60)|int }}分钟
+                                    {% else %}
+                                        {{ (duration/3600)|int }}小时
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span style="color: var(--gray);">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-label">返回代码</div>
+                        <div class="info-value">
+                            {% if execution.status == 'SUCCESS' %}
+                                <span style="color: var(--success); font-weight: 700;">0 (成功)</span>
+                            {% elif execution.status == 'FAILED' %}
+                                <span style="color: var(--danger); font-weight: 700;">
+                                    {{ execution.error and 'ERROR' or 'NON-ZERO' }}
+                                </span>
+                            {% else %}
+                                <span style="color: var(--gray);">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能指标 -->
+        <div class="metrics-grid slide-up" style="animation-delay: 0.1s;">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon">
+                        <i class="fas fa-file-code"></i>
+                    </div>
+                    <div>
+                        <div class="metric-title">输出大小</div>
+                    </div>
+                </div>
+                <div class="metric-value">
+                    {% set stdout_size = execution.stdout|length if execution.stdout else 0 %}
+                    {% set stderr_size = execution.stderr|length if execution.stderr else 0 %}
+                    {% set total_size = stdout_size + stderr_size %}
+                    {% if total_size < 1024 %}
+                        {{ total_size }} B
+                    {% elif total_size < 1048576 %}
+                        {{ (total_size/1024)|int }} KB
+                    {% else %}
+                        {{ (total_size/1048576)|int }} MB
+                    {% endif %}
+                </div>
+                <div class="metric-label">总输出数据量</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div>
+                        <div class="metric-title">执行速度</div>
+                    </div>
+                </div>
+                <div class="metric-value">
+                    {% if execution.started_at and execution.finished_at %}
+                        {% set duration = (execution.finished_at|to_datetime - execution.started_at|to_datetime).total_seconds() %}
+                        {% if duration > 0 %}
+                            {% set output_per_second = total_size / duration %}
+                            {% if output_per_second < 1024 %}
+                                {{ output_per_second|int }} B/s
+                            {% elif output_per_second < 1048576 %}
+                                {{ (output_per_second/1024)|int }} KB/s
+                            {% else %}
+                                {{ (output_per_second/1048576)|int }} MB/s
+                            {% endif %}
+                        {% else %}
+                            即时
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+                <div class="metric-label">数据处理速度</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <div class="metric-title">输出统计</div>
+                    </div>
+                </div>
+                <div class="metric-value">
+                    {% if execution.stdout %}
+                        {{ execution.stdout.count('\n') + 1 }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </div>
+                <div class="metric-label">输出行数</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div>
+                        <div class="metric-title">错误统计</div>
+                    </div>
+                </div>
+                <div class="metric-value">
+                    {% if execution.stderr %}
+                        {{ execution.stderr.count('\n') + 1 }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </div>
+                <div class="metric-label">错误行数</div>
+            </div>
+        </div>
+
+        <!-- 命令预览 -->
+        <div class="command-preview slide-up" style="animation-delay: 0.2s;">
+            <div class="preview-header">
+                <i class="fas fa-terminal" style="font-size: 1.5rem; color: var(--primary-light);"></i>
+                <h3>执行命令</h3>
+            </div>
+            <div class="command-block">
+                <div class="command-text" id="commandText">
+                    {% if task %}
+                        {{ task.command }}
+                    {% else %}
+                        无法获取命令信息
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志容器 -->
+        <div class="logs-container slide-up" style="animation-delay: 0.3s;">
+            <div class="logs-tabs">
+                <button class="log-tab active" onclick="showLogTab('stdout')">
+                    <i class="fas fa-stream"></i>
+                    标准输出
+                    {% if execution.stdout %}
+                        <span class="log-badge badge-stdout">{{ execution.stdout.count('\n') + 1 }} 行</span>
+                    {% endif %}
+                </button>
+                <button class="log-tab" onclick="showLogTab('stderr')">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    错误输出
+                    {% if execution.stderr %}
+                        <span class="log-badge badge-stderr">{{ execution.stderr.count('\n') + 1 }} 行</span>
+                    {% endif %}
+                </button>
+                <button class="log-tab" onclick="showLogTab('error')">
+                    <i class="fas fa-bug"></i>
+                    系统错误
+                    {% if execution.error %}
+                        <span class="log-badge badge-error">1 个错误</span>
+                    {% endif %}
+                </button>
+            </div>
+
+            <div class="logs-content">
+                <!-- 标准输出 -->
+                <div class="terminal-emulator" id="stdoutTab" style="display: block;">
+                    {% if execution.stdout %}
+                        {% set lines = execution.stdout.split('\n') %}
+                        {% for line in lines %}
+                            <div class="terminal-line">
+                                <span class="line-number">{{ loop.index|string.rjust(4) }}</span>
+                                <span class="terminal-output">{{ line }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="logs-empty">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>无标准输出</h3>
+                            <p>此执行没有产生标准输出内容</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- 错误输出 -->
+                <div class="terminal-emulator" id="stderrTab" style="display: none;">
+                    {% if execution.stderr %}
+                        {% set lines = execution.stderr.split('\n') %}
+                        {% for line in lines %}
+                            <div class="terminal-line">
+                                <span class="line-number">{{ loop.index|string.rjust(4) }}</span>
+                                <span class="terminal-error">{{ line }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="logs-empty">
+                            <i class="fas fa-times-circle"></i>
+                            <h3>无错误输出</h3>
+                            <p>此执行没有产生错误输出内容</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- 系统错误 -->
+                <div class="terminal-emulator" id="errorTab" style="display: none;">
+                    {% if execution.error %}
+                        <div class="terminal-line">
+                            <span class="line-number">1</span>
+                            <span class="terminal-error" style="background: rgba(247, 37, 133, 0.2); padding: 10px; border-radius: 8px; display: inline-block;">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ execution.error }}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="logs-empty">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>无系统错误</h3>
+                            <p>此执行没有产生系统错误</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作面板 -->
+        <div class="action-panel slide-up" style="animation-delay: 0.4s;">
+            <div class="action-grid">
+                <button class="action-btn btn-copy" onclick="copyLogs()">
+                    <i class="fas fa-copy action-icon"></i>
+                    <span class="action-label">复制日志</span>
+                    <span class="action-desc">复制当前标签页内容</span>
+                </button>
+
+                <button class="action-btn btn-download" onclick="downloadLogs()">
+                    <i class="fas fa-download action-icon"></i>
+                    <span class="action-label">下载日志</span>
+                    <span class="action-desc">下载完整执行日志</span>
+                </button>
+
+                <button class="action-btn btn-back" onclick="window.location.href='/ui/tasks/{{ execution.task_id }}'">
+                    <i class="fas fa-arrow-left action-icon"></i>
+                    <span class="action-label">返回任务</span>
+                    <span class="action-desc">查看任务详情</span>
+                </button>
+
+                <button class="action-btn btn-secondary" onclick="window.location.href='/ui/tasks'">
+                    <i class="fas fa-list action-icon"></i>
+                    <span class="action-label">任务列表</span>
+                    <span class="action-desc">查看所有任务</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 当前激活的标签页
+        let activeTab = 'stdout';
+
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('执行详情页面加载完成');
+            
+            // 初始化标签页切换
+            initializeTabSwitching();
+            
+            // 添加终端动画效果
+            addTerminalEffects();
+            
+            // 初始化键盘快捷键
+            initializeKeyboardShortcuts();
+            
+            // 自动滚动到最新内容
+            autoScrollToBottom();
+        });
+
+        // 初始化标签页切换
+        function initializeTabSwitching() {
+            const tabs = document.querySelectorAll('.log-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.textContent.includes('标准输出') ? 'stdout' : 
+                                    this.textContent.includes('错误输出') ? 'stderr' : 'error';
+                    
+                    showLogTab(tabName);
+                });
+            });
+        }
+
+        // 显示标签页内容
+        function showLogTab(tabName) {
+            // 更新标签页状态
+            document.querySelectorAll('.log-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent.includes(
+                    tabName === 'stdout' ? '标准输出' : 
+                    tabName === 'stderr' ? '错误输出' : '系统错误'
+                )) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            // 显示对应内容
+            ['stdout', 'stderr', 'error'].forEach(name => {
+                const tab = document.getElementById(name + 'Tab');
+                if (tab) {
+                    tab.style.display = name === tabName ? 'block' : 'none';
+                }
+            });
+            
+            activeTab = tabName;
+            
+            // 滚动到顶部
+            const logsContent = document.querySelector('.logs-content');
+            if (logsContent) {
+                logsContent.scrollTop = 0;
+            }
+            
+            // 显示提示
+            const tabNames = {
+                'stdout': '标准输出',
+                'stderr': '错误输出', 
+                'error': '系统错误'
+            };
+            showNotification(`已切换到${tabNames[tabName]}`, 'info');
+        }
+
+        // 添加终端效果
+        function addTerminalEffects() {
+            // 为终端行添加打字机效果
+            const terminalLines = document.querySelectorAll('.terminal-line');
+            terminalLines.forEach((line, index) => {
+                line.style.animationDelay = `${index * 0.05}s`;
+            });
+            
+            // 添加闪烁光标效果
+            const commandText = document.getElementById('commandText');
+            if (commandText) {
+                addCursorEffect(commandText);
+            }
+        }
+
+        // 添加光标效果
+        function addCursorEffect(element) {
+            const cursor = document.createElement('span');
+            cursor.className = 'cursor';
+            cursor.innerHTML = '█';
+            cursor.style.color = 'var(--primary-light)';
+            cursor.style.animation = 'blink 1s infinite';
+            
+            element.appendChild(cursor);
+            
+            // 添加动画样式
+            if (!document.querySelector('#cursor-animation')) {
+                const style = document.createElement('style');
+                style.id = 'cursor-animation';
+                style.textContent = `
+                    @keyframes blink {
+                        0%, 50% { opacity: 1; }
+                        51%, 100% { opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // 复制当前标签页日志
+        function copyLogs() {
+            const activeTabElement = document.getElementById(activeTab + 'Tab');
+            if (!activeTabElement) return;
+            
+            let textToCopy = '';
+            
+            if (activeTab === 'error' && "{{ execution.error|tojson|safe }}" !== "null" && "{{ execution.error|default('') }}") {
+                textToCopy = "{{ execution.error|tojson|safe }}";
+            } else if (activeTab === 'stdout' && "{{ execution.stdout|tojson|safe }}" !== "null" && "{{ execution.stdout|default('') }}") {
+                textToCopy = "{{ execution.stdout|tojson|safe }}";
+            } else if (activeTab === 'stderr' && "{{ execution.stderr|tojson|safe }}" !== "null" && "{{ execution.stderr|default('') }}") {
+                textToCopy = "{{ execution.stderr|tojson|safe }}";
+            }
+            
+            if (textToCopy) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        showNotification('日志内容已复制到剪贴板', 'success');
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                        showNotification('复制失败，请重试', 'error');
+                    });
+            } else {
+                showNotification('没有内容可以复制', 'warning');
+            }
+        }
+
+        // 下载完整日志
+        function downloadLogs() {
+            const logContent = `执行记录 #{{ execution.id }}
+===============================
+任务ID: {{ execution.task_id }}
+执行状态: {{ execution.status }}
+开始时间: {{ execution.started_at }}
+结束时间: {{ execution.finished_at }}
+错误信息: {{ execution.error or '无' }}
+
+标准输出:
+{{ execution.stdout or '无标准输出' }}
+
+错误输出:
+{{ execution.stderr or '无错误输出' }}
+===============================
+导出时间: ${new Date().toLocaleString('zh-CN')}`;
+
+            const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `execution-{{ execution.id }}-{{ execution.started_at[:10] if execution.started_at else 'unknown' }}.log`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showNotification('日志文件已开始下载', 'success');
+        }
+
+        // 刷新数据
+        function refreshData() {
+            location.reload();
+        }
+
+        // 初始化键盘快捷键
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + 1-3 切换标签页
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === '1') {
+                        e.preventDefault();
+                        showLogTab('stdout');
+                    } else if (e.key === '2') {
+                        e.preventDefault();
+                        showLogTab('stderr');
+                    } else if (e.key === '3') {
+                        e.preventDefault();
+                        showLogTab('error');
+                    }
+                }
+                
+                // Ctrl/Cmd + C 复制
+                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                    e.preventDefault();
+                    copyLogs();
+                }
+                
+                // Ctrl/Cmd + D 下载
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                    e.preventDefault();
+                    downloadLogs();
+                }
+                
+                // Ctrl/Cmd + R 刷新
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    refreshData();
+                }
+                
+                // ESC 返回
+                if (e.key === 'Escape') {
+                    window.location.href = '/ui/tasks/{{ execution.task_id }}';
+                }
+            });
+        }
+
+        // 自动滚动到底部
+        function autoScrollToBottom() {
+            const logsContent = document.querySelector('.logs-content');
+            if (logsContent) {
+                setTimeout(() => {
+                    logsContent.scrollTop = logsContent.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 移除现有通知
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            // 创建新通知
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            
+            const typeConfig = {
+                success: {
+                    background: 'linear-gradient(135deg, rgba(76, 201, 240, 0.9), rgba(72, 149, 239, 0.9))',
+                    icon: 'check-circle',
+                    border: '1px solid rgba(76, 201, 240, 0.3)'
+                },
+                error: {
+                    background: 'linear-gradient(135deg, rgba(247, 37, 133, 0.9), rgba(181, 23, 158, 0.9))',
+                    icon: 'exclamation-circle',
+                    border: '1px solid rgba(247, 37, 133, 0.3)'
+                },
+                warning: {
+                    background: 'linear-gradient(135deg, rgba(248, 150, 30, 0.9), rgba(243, 114, 44, 0.9))',
+                    icon: 'exclamation-triangle',
+                    border: '1px solid rgba(248, 150, 30, 0.3)'
+                },
+                info: {
+                    background: 'linear-gradient(135deg, rgba(67, 97, 238, 0.9), rgba(58, 12, 163, 0.9))',
+                    icon: 'info-circle',
+                    border: '1px solid rgba(67, 97, 238, 0.3)'
+                }
+            };
+            
+            const config = typeConfig[type] || typeConfig.info;
+            
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                padding: 16px 24px;
+                background: ${config.background};
+                color: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                max-width: 400px;
+                font-weight: 600;
+                backdrop-filter: blur(10px);
+                border: ${config.border};
+                font-family: inherit;
+            `;
+            
+            notification.innerHTML = `
+                <i class="fas fa-${config.icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 自动移除
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOutRight 0.4s forwards';
+                    setTimeout(() => notification.remove(), 400);
+                }
+            }, 3000);
+            
+            // 添加动画样式
+            if (!document.querySelector('#notification-animations')) {
+                const style = document.createElement('style');
+                style.id = 'notification-animations';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOutRight {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // 搜索日志内容
+        function searchLogs() {
+            const searchTerm = prompt('请输入搜索内容:');
+            if (!searchTerm) return;
+            
+            const activeTabElement = document.getElementById(activeTab + 'Tab');
+            if (!activeTabElement) return;
+            
+            // 移除之前的高亮
+            activeTabElement.querySelectorAll('.highlight-search').forEach(el => {
+                el.classList.remove('highlight-search');
+            });
+            
+            // 搜索并高亮
+            const text = activeTabElement.textContent;
+            if (text.includes(searchTerm)) {
+                const regex = new RegExp(searchTerm, 'gi');
+                const html = activeTabElement.innerHTML.replace(regex, 
+                    match => `<span class="highlight-search" style="background: rgba(248, 150, 30, 0.3); color: white; padding: 2px 4px; border-radius: 4px;">${match}</span>`
+                );
+                activeTabElement.innerHTML = html;
+                
+                // 滚动到第一个匹配项
+                const firstMatch = activeTabElement.querySelector('.highlight-search');
+                if (firstMatch) {
+                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                showNotification(`找到 ${activeTabElement.querySelectorAll('.highlight-search').length} 个匹配项`, 'info');
+            } else {
+                showNotification('未找到匹配内容', 'warning');
+            }
+        }
+
+        // 添加搜索按钮到导航栏（如果需要）
+        window.addEventListener('load', function() {
+            const navActions = document.querySelector('.nav-actions');
+            if (navActions) {
+                const searchBtn = document.createElement('button');
+                searchBtn.className = 'terminal-btn btn-secondary';
+                searchBtn.innerHTML = '<i class="fas fa-search"></i>';
+                searchBtn.title = '搜索日志 (Ctrl+F)';
+                searchBtn.onclick = searchLogs;
+                navActions.insertBefore(searchBtn, navActions.children[1]);
+            }
+            
+            // 添加Ctrl+F搜索快捷键
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    searchLogs();
+                }
+            });
+        });
+
+        // 窗口大小变化时重新布局
+        window.addEventListener('resize', function() {
+            // 重新计算终端宽度
+            const terminalLines = document.querySelectorAll('.terminal-line');
+            terminalLines.forEach(line => {
+                line.style.wordBreak = 'break-word';
+            });
+        });
+    </script>
+</body>
+</html>

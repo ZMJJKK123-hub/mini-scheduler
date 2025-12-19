@@ -11,6 +11,8 @@ class Task:
     status:str
     last_run_at:Optional[str]
     created_at:str
+    last_error: Optional[str] = None
+    force_run_at: Optional[str] = None 
 
     @staticmethod
     def now():
