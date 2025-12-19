@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务删除结果</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ee7752 0%, #e73c7e 50%, #23a6d5 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 50px;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .success .icon {
+            color: #10b981;
+            animation: bounce 0.6s ease-out;
+        }
+
+        .error .icon {
+            color: #ef4444;
+            animation: shake 0.6s ease-out;
+        }
+
+        @keyframes bounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .success h1 {
+            color: #10b981;
+        }
+
+        .error h1 {
+            color: #ef4444;
+        }
+
+        .message {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .details {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .detail-value {
+            color: #6b7280;
+        }
+
+        .info-box {
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .info-box .info-title {
+            color: #065f46;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .info-box .info-message {
+            color: #047857;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .warning-box .warning-title {
+            color: #78350f;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .warning-box .warning-message {
+            color: #92400e;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .error-box {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .error-box .error-title {
+            color: #991b1b;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .error-box .error-message {
+            color: #7f1d1d;
+            font-size: 14px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container {% if success %}success{% else %}error{% endif %}">
+        {% if success %}
+            <div class="icon">
+                <i class="fas fa-trash-check"></i>
+            </div>
+            <h1>任务已删除</h1>
+            <div class="message">
+                任务 <strong>{{ task_name }}</strong> 已成功删除，包括其所有执行记录
+            </div>
+
+            <div class="info-box">
+                <div class="info-title"><i class="fas fa-info-circle"></i> 删除详情</div>
+                <div class="info-message">
+                    已删除 <strong>{{ deleted_exec_count }}</strong> 条执行记录。<br>
+                    所有相关数据已从系统中永久移除。
+                </div>
+            </div>
+
+            <div class="details">
+                <div class="detail-row">
+                    <span class="detail-label">任务名称</span>
+                    <span class="detail-value">{{ task_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">任务ID</span>
+                    <span class="detail-value">#{{ task_id }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">删除的执行记录</span>
+                    <span class="detail-value">{{ deleted_exec_count }} 条</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">删除时间</span>
+                    <span class="detail-value">{{ now }}</span>
+                </div>
+            </div>
+        {% else %}
+            <div class="icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <h1>删除失败</h1>
+            <div class="message">
+                抱歉，删除任务时发生错误
+            </div>
+
+            <div class="error-box">
+                <div class="error-title">错误详情</div>
+                <div class="error-message">{{ error }}</div>
+            </div>
+        {% endif %}
+
+        <div class="buttons">
+            <a href="/ui/tasks" class="btn btn-primary">
+                <i class="fas fa-list"></i>
+                返回任务列表
+            </a>
+            {% if not success %}
+                <a href="/ui/tasks/{{ task_id }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    返回任务详情
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

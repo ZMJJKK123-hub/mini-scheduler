@@ -822,9 +822,24 @@
                     </button>
                 </div>
                 {% else %}
+                <form id="bulkForm" method="post" action="/tasks/bulk/delete">
+                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                    <button type="button" class="btn btn-danger" onclick="submitBulkAction('/tasks/bulk/delete', '确定要删除所选任务吗？')">
+                        <i class="fas fa-trash"></i> 批量删除
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="submitBulkAction('/tasks/bulk/pause', '确定要暂停所选任务吗？')">
+                        <i class="fas fa-pause"></i> 批量暂停
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitBulkAction('/tasks/bulk/force_run', '确定要立即执行所选任务吗？')">
+                        <i class="fas fa-bolt"></i> 批量强制执行
+                    </button>
+                    <span style="color: var(--gray-color); align-self:center; margin-left:8px;">已选 <strong id="selected-count">0</strong> 项</span>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
+                            <th style="width:40px;"><input id="selectAll" type="checkbox" title="全选"></th>
                             <th><i class="fas fa-hashtag"></i> ID</th>
                             <th><i class="fas fa-tag"></i> 名称</th>
                             <th><i class="fas fa-calendar-alt"></i> Cron</th>
@@ -837,6 +852,7 @@
                     <tbody id="tasksTable">
                         {% for task in tasks %}
                         <tr class="task-row" data-status="{{ task.status }}" data-id="{{ task.id }}">
+                            <td><input class="select-task" type="checkbox" name="task_ids" value="{{ task.id }}"></td>
                             <td style="font-weight: 600; color: var(--primary-color);">#{{ task.id }}</td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -896,7 +912,7 @@
                                     
                                     <form action="/tasks/{{ task.id }}/toggle" method="post" style="display: inline;">
                                         <button type="submit" class="action-btn {% if task.status == 'PAUSED' %}btn-resume{% else %}btn-pause{% endif %}" 
-                                                onclick="return confirm('{% if task.status == \'PAUSED\' %}恢复此任务？{% else %}暂停此任务？{% endif %}')">
+                                                onclick="return confirm('{% if task.status == "PAUSED" %}恢复此任务？{% else %}暂停此任务？{% endif %}')">
                                             {% if task.status == "PAUSED" %}
                                                 <i class="fas fa-play-circle"></i> 恢复
                                             {% else %}
@@ -916,6 +932,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </form>
                 {% endif %}
             </div>
         </div>
@@ -974,6 +991,8 @@
             
             // 设置表格行交互
             setupTableInteractions();
+                // 设置批量选择
+                setupBulkSelection();
         });
 
         // 计算统计信息
@@ -993,6 +1012,66 @@
             document.getElementById('running-count').textContent = running;
             document.getElementById('failed-count').textContent = failed;
             document.getElementById('pending-count').textContent = pending;
+        }
+
+        // 批量选择相关
+        function setupBulkSelection() {
+            const selectAll = document.getElementById('selectAll');
+            const selectedCountEl = document.getElementById('selected-count');
+
+            function updateSelectedCount() {
+                const checked = document.querySelectorAll('.select-task:checked').length;
+                selectedCountEl.textContent = checked;
+                const total = document.querySelectorAll('.select-task').length;
+                if (selectAll) selectAll.checked = total > 0 && checked === total;
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    const checked = selectAll.checked;
+                    document.querySelectorAll('.select-task').forEach(cb => cb.checked = checked);
+                    updateSelectedCount();
+                });
+            }
+
+            // 初始更新
+            updateSelectedCount();
+
+            document.addEventListener('change', function (e) {
+                if (e.target && e.target.classList && e.target.classList.contains('select-task')) {
+                    updateSelectedCount();
+                }
+            });
+        }
+
+        async function submitBulkAction(actionUrl, confirmMsg) {
+            const checkboxes = document.querySelectorAll('.select-task:checked');
+            if (!checkboxes.length) {
+                alert('请先选择要操作的任务');
+                return;
+            }
+
+            if (!confirm(confirmMsg)) return;
+
+            const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+            try {
+                const res = await fetch(actionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(ids)
+                });
+
+                const html = await res.text();
+                // Replace document with returned HTML result page
+                document.open();
+                document.write(html);
+                document.close();
+            } catch (e) {
+                alert('请求失败: ' + e);
+            }
         }
 
         // 设置搜索功能

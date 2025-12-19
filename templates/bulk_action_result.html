@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量操作结果</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+        .container{background:white;border-radius:16px;max-width:720px;width:100%;padding:36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.25)}
+        .icon{font-size:64px;margin-bottom:18px}
+        h1{font-size:24px;margin-bottom:12px;color:#111827}
+        .message{color:#6b7280;margin-bottom:20px}
+        .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+        .card{background:#f8fafc;padding:14px;border-radius:10px;text-align:left}
+        .card h4{margin-bottom:8px;font-size:14px;color:#374151}
+        .list{font-size:13px;color:#6b7280;word-break:break-all}
+        .buttons{display:flex;gap:10px;justify-content:center;margin-top:18px}
+        .btn{padding:10px 20px;border-radius:10px;border:none;font-weight:600;cursor:pointer}
+        .btn-primary{background:#667eea;color:white}
+        .btn-secondary{background:#e5e7eb;color:#374151}
+        .error{background:#fee2e2;border-left:4px solid #ef4444;padding:14px;border-radius:8px;color:#991b1b}
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if success %}
+            <div class="icon"><i class="fas fa-check-circle" style="color:#10b981"></i></div>
+            <h1>批量操作已完成</h1>
+            <div class="message">操作：<strong>{{ action }}</strong> &nbsp;|&nbsp; 影响任务：<strong>{{ requested_ids|length }}</strong></div>
+
+            <div class="cards">
+                <div class="card">
+                    <h4>任务 ID 列表</h4>
+                    <div class="list">{{ requested_ids|join(', ') }}</div>
+                </div>
+                <div class="card">
+                    <h4>结果摘要</h4>
+                    <div class="list">
+                        {% if deleted_task_count is defined %}
+                            删除任务数：{{ deleted_task_count }}<br>
+                            删除执行记录数：{{ deleted_exec_count }}
+                        {% elif updated_count is defined %}
+                            更新任务数：{{ updated_count }}<br>
+                            {% if trigger_time is defined %}触发时间：{{ trigger_time }}{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if found is defined and found %}
+            <div style="text-align:left; margin-bottom:14px;">
+                <h4 style="margin-bottom:8px">已找到并处理的任务</h4>
+                <div class="list">
+                    {% for id, name in found.items() %}
+                        #{{ id }} - {{ name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div class="icon"><i class="fas fa-times-circle" style="color:#ef4444"></i></div>
+            <h1>批量操作失败</h1>
+            <div class="message">出现错误：<strong>{{ error }}</strong></div>
+            <div class="error">请重试或检查所选任务是否存在</div>
+        {% endif %}
+
+        <div class="buttons">
+            <a href="/ui/tasks" class="btn btn-secondary">返回任务列表</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -958,7 +958,7 @@
     </nav>
 
     <!-- 主容器 -->
-    <div class="container">
+    <div class="container" id="pageContainer" data-start="{{ execution.started_at or '' }}" data-end="{{ execution.finished_at or '' }}" data-stdout-size="{{ execution.stdout|length if execution.stdout else 0 }}" data-stderr-size="{{ execution.stderr|length if execution.stderr else 0 }}">
         <!-- 执行头信息 -->
         <div class="execution-header fade-in">
             <div class="header-main">
@@ -1027,18 +1027,7 @@
                         <div class="info-label">持续时间</div>
                         <div class="info-value">
                             {% if execution.started_at and execution.finished_at %}
-                                <span class="highlight" style="color: var(--primary-light); font-weight: 700;">
-                                    {% set start = execution.started_at|to_datetime %}
-                                    {% set end = execution.finished_at|to_datetime %}
-                                    {% set duration = (end - start).total_seconds() %}
-                                    {% if duration < 60 %}
-                                        {{ duration|int }}秒
-                                    {% elif duration < 3600 %}
-                                        {{ (duration/60)|int }}分钟
-                                    {% else %}
-                                        {{ (duration/3600)|int }}小时
-                                    {% endif %}
-                                </span>
+                                <span id="durationValue" class="highlight" style="color: var(--primary-light); font-weight: 700;" data-start="{{ execution.started_at }}" data-end="{{ execution.finished_at }}">-</span>
                             {% else %}
                                 <span style="color: var(--gray);">-</span>
                             {% endif %}
@@ -1103,25 +1092,7 @@
                         <div class="metric-title">执行速度</div>
                     </div>
                 </div>
-                <div class="metric-value">
-                    {% if execution.started_at and execution.finished_at %}
-                        {% set duration = (execution.finished_at|to_datetime - execution.started_at|to_datetime).total_seconds() %}
-                        {% if duration > 0 %}
-                            {% set output_per_second = total_size / duration %}
-                            {% if output_per_second < 1024 %}
-                                {{ output_per_second|int }} B/s
-                            {% elif output_per_second < 1048576 %}
-                                {{ (output_per_second/1024)|int }} KB/s
-                            {% else %}
-                                {{ (output_per_second/1048576)|int }} MB/s
-                            {% endif %}
-                        {% else %}
-                            即时
-                        {% endif %}
-                    {% else %}
-                        -
-                    {% endif %}
-                </div>
+                <div class="metric-value" id="speedValue">-</div>
                 <div class="metric-label">数据处理速度</div>
             </div>
 
@@ -1184,21 +1155,21 @@
         <!-- 日志容器 -->
         <div class="logs-container slide-up" style="animation-delay: 0.3s;">
             <div class="logs-tabs">
-                <button class="log-tab active" onclick="showLogTab('stdout')">
+                <button class="log-tab active" onclick="showLogTab('stdout')" data-tab="stdout">
                     <i class="fas fa-stream"></i>
                     标准输出
                     {% if execution.stdout %}
                         <span class="log-badge badge-stdout">{{ execution.stdout.count('\n') + 1 }} 行</span>
                     {% endif %}
                 </button>
-                <button class="log-tab" onclick="showLogTab('stderr')">
+                <button class="log-tab" onclick="showLogTab('stderr')" data-tab="stderr">
                     <i class="fas fa-exclamation-triangle"></i>
                     错误输出
                     {% if execution.stderr %}
                         <span class="log-badge badge-stderr">{{ execution.stderr.count('\n') + 1 }} 行</span>
                     {% endif %}
                 </button>
-                <button class="log-tab" onclick="showLogTab('error')">
+                <button class="log-tab" onclick="showLogTab('error')" data-tab="error">
                     <i class="fas fa-bug"></i>
                     系统错误
                     {% if execution.error %}
@@ -1214,7 +1185,7 @@
                         {% set lines = execution.stdout.split('\n') %}
                         {% for line in lines %}
                             <div class="terminal-line">
-                                <span class="line-number">{{ loop.index|string.rjust(4) }}</span>
+                                <span class="line-number">{{ '%4d'|format(loop.index) }}</span>
                                 <span class="terminal-output">{{ line }}</span>
                             </div>
                         {% endfor %}
@@ -1233,7 +1204,7 @@
                         {% set lines = execution.stderr.split('\n') %}
                         {% for line in lines %}
                             <div class="terminal-line">
-                                <span class="line-number">{{ loop.index|string.rjust(4) }}</span>
+                                <span class="line-number">{{ '%4d'|format(loop.index) }}</span>
                                 <span class="terminal-error">{{ line }}</span>
                             </div>
                         {% endfor %}
@@ -1298,7 +1269,7 @@
     </div>
 
     <script>
-        // 当前激活的标签页
+        // 当前激活的标签页（全局变量）
         let activeTab = 'stdout';
 
         // 页面加载完成
@@ -1316,16 +1287,18 @@
             
             // 自动滚动到最新内容
             autoScrollToBottom();
+            
+            // 计算并更新持续时间与速度等指标
+            computeMetrics();
         });
 
         // 初始化标签页切换
         function initializeTabSwitching() {
             const tabs = document.querySelectorAll('.log-tab');
             tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.textContent.includes('标准输出') ? 'stdout' : 
-                                    this.textContent.includes('错误输出') ? 'stderr' : 'error';
-                    
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tabName = this.dataset.tab || 'stdout';
                     showLogTab(tabName);
                 });
             });
@@ -1333,13 +1306,16 @@
 
         // 显示标签页内容
         function showLogTab(tabName) {
-            // 更新标签页状态
+            // 验证标签页名称
+            if (!['stdout', 'stderr', 'error'].includes(tabName)) {
+                console.warn('Invalid tab:', tabName);
+                return;
+            }
+            
+            // 更新标签页按钮状态
             document.querySelectorAll('.log-tab').forEach(tab => {
                 tab.classList.remove('active');
-                if (tab.textContent.includes(
-                    tabName === 'stdout' ? '标准输出' : 
-                    tabName === 'stderr' ? '错误输出' : '系统错误'
-                )) {
+                if (tab.dataset.tab === tabName) {
                     tab.classList.add('active');
                 }
             });
@@ -1352,21 +1328,15 @@
                 }
             });
             
+            // 更新当前激活标签
             activeTab = tabName;
+            console.log('Switched to tab:', activeTab);
             
             // 滚动到顶部
             const logsContent = document.querySelector('.logs-content');
             if (logsContent) {
                 logsContent.scrollTop = 0;
             }
-            
-            // 显示提示
-            const tabNames = {
-                'stdout': '标准输出',
-                'stderr': '错误输出', 
-                'error': '系统错误'
-            };
-            showNotification(`已切换到${tabNames[tabName]}`, 'info');
         }
 
         // 添加终端效果
@@ -1682,6 +1652,56 @@
                 line.style.wordBreak = 'break-word';
             });
         });
+
+        // 计算并展示持续时间与执行速度（客户端计算，避免在模板中使用不可用的过滤器）
+        function computeMetrics() {
+            const container = document.getElementById('pageContainer');
+            if (!container) return;
+            const start = container.dataset.start;
+            const end = container.dataset.end;
+            const stdoutSize = parseInt(container.dataset.stdoutSize || '0', 10) || 0;
+            const stderrSize = parseInt(container.dataset.stderrSize || '0', 10) || 0;
+            const totalSize = stdoutSize + stderrSize;
+
+            const durationEl = document.getElementById('durationValue');
+            if (durationEl && start && end) {
+                const s = Date.parse(start);
+                const e = Date.parse(end);
+                if (!isNaN(s) && !isNaN(e) && e >= s) {
+                    const durationSec = Math.floor((e - s) / 1000);
+                    let durStr = '-';
+                    if (durationSec < 60) durStr = `${durationSec}秒`;
+                    else if (durationSec < 3600) durStr = `${Math.floor(durationSec / 60)}分钟`;
+                    else durStr = `${Math.floor(durationSec / 3600)}小时`;
+                    durationEl.textContent = durStr;
+                } else {
+                    durationEl.textContent = '-';
+                }
+            }
+
+            const speedEl = document.getElementById('speedValue');
+            if (speedEl) {
+                if (start && end) {
+                    const s = Date.parse(start);
+                    const e = Date.parse(end);
+                    if (!isNaN(s) && !isNaN(e) && e > s) {
+                        const durationSec = (e - s) / 1000;
+                        if (durationSec <= 0) {
+                            speedEl.textContent = '即时';
+                        } else {
+                            const outPerSec = totalSize / durationSec;
+                            if (outPerSec < 1024) speedEl.textContent = `${Math.floor(outPerSec)} B/s`;
+                            else if (outPerSec < 1048576) speedEl.textContent = `${Math.floor(outPerSec/1024)} KB/s`;
+                            else speedEl.textContent = `${Math.floor(outPerSec/1048576)} MB/s`;
+                        }
+                    } else {
+                        speedEl.textContent = '-';
+                    }
+                } else {
+                    speedEl.textContent = '-';
+                }
+            }
+        }
     </script>
 </body>
 </html>
