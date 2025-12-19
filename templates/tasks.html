@@ -822,24 +822,28 @@
                     </button>
                 </div>
                 {% else %}
-                <form id="bulkForm" method="post" action="/tasks/bulk/delete">
-                <div style="display:flex; gap:10px; margin-bottom:12px;">
-                    <button type="button" class="btn btn-danger" onclick="submitBulkAction('/tasks/bulk/delete', '确定要删除所选任务吗？')">
-                        <i class="fas fa-trash"></i> 批量删除
+                <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
+                    <button id="bulkModeToggle" type="button" class="btn btn-secondary" onclick="toggleBulkMode()">
+                        <i class="fas fa-check-square"></i> 批量操作
                     </button>
-                    <button type="button" class="btn btn-warning" onclick="submitBulkAction('/tasks/bulk/pause', '确定要暂停所选任务吗？')">
-                        <i class="fas fa-pause"></i> 批量暂停
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="submitBulkAction('/tasks/bulk/force_run', '确定要立即执行所选任务吗？')">
-                        <i class="fas fa-bolt"></i> 批量强制执行
-                    </button>
-                    <span style="color: var(--gray-color); align-self:center; margin-left:8px;">已选 <strong id="selected-count">0</strong> 项</span>
+                    <div id="bulkControls" style="display:none; gap:10px;">
+                        <button type="button" class="btn btn-danger" onclick="submitBulkAction('/tasks/bulk/delete', '确定要删除所选任务吗？')">
+                            <i class="fas fa-trash"></i> 批量删除
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="submitBulkAction('/tasks/bulk/pause', '确定要暂停所选任务吗？')">
+                            <i class="fas fa-pause"></i> 批量暂停
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="submitBulkAction('/tasks/bulk/force_run', '确定要立即执行所选任务吗？')">
+                            <i class="fas fa-bolt"></i> 批量强制执行
+                        </button>
+                        <span style="color: var(--gray-color); align-self:center; margin-left:8px;">已选 <strong id="selected-count">0</strong> 项</span>
+                    </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:40px;"><input id="selectAll" type="checkbox" title="全选"></th>
+                            <th style="width:40px;"><input id="selectAll" class="bulk-checkbox" type="checkbox" title="全选" style="display:none"></th>
                             <th><i class="fas fa-hashtag"></i> ID</th>
                             <th><i class="fas fa-tag"></i> 名称</th>
                             <th><i class="fas fa-calendar-alt"></i> Cron</th>
@@ -852,7 +856,7 @@
                     <tbody id="tasksTable">
                         {% for task in tasks %}
                         <tr class="task-row" data-status="{{ task.status }}" data-id="{{ task.id }}">
-                            <td><input class="select-task" type="checkbox" name="task_ids" value="{{ task.id }}"></td>
+                            <td><input class="select-task bulk-checkbox" type="checkbox" name="task_ids" value="{{ task.id }}" style="display:none"></td>
                             <td style="font-weight: 600; color: var(--primary-color);">#{{ task.id }}</td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1042,6 +1046,30 @@
                     updateSelectedCount();
                 }
             });
+        }
+
+        // 切换批量模式（显示/隐藏复选框和批量操作按钮）
+        function toggleBulkMode() {
+            const bulkControls = document.getElementById('bulkControls');
+            const toggleBtn = document.getElementById('bulkModeToggle');
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.bulk-checkbox');
+            const selectedCountEl = document.getElementById('selected-count');
+
+            const enabled = bulkControls.style.display !== 'flex';
+            if (enabled) {
+                bulkControls.style.display = 'flex';
+                toggleBtn.textContent = '退出批量操作';
+                // show checkboxes
+                if (selectAll) selectAll.style.display = 'inline-block';
+                checkboxes.forEach(cb => cb.style.display = 'inline-block');
+            } else {
+                bulkControls.style.display = 'none';
+                toggleBtn.innerHTML = '<i class="fas fa-check-square"></i> 批量操作';
+                if (selectAll) { selectAll.checked = false; selectAll.style.display = 'none'; }
+                checkboxes.forEach(cb => { cb.checked = false; cb.style.display = 'none'; });
+                if (selectedCountEl) selectedCountEl.textContent = '0';
+            }
         }
 
         async function submitBulkAction(actionUrl, confirmMsg) {
@@ -1378,13 +1406,21 @@
                     this.style.cursor = 'pointer';
                 });
                 
-                // 点击行查看详情（排除按钮点击）
+                // 点击行查看详情（排除按钮/链接/复选框点击，或批量模式下复选框区域）
                 row.addEventListener('click', function(e) {
-                    if (!e.target.closest('button') && !e.target.closest('a')) {
-                        const taskId = this.dataset.id;
-                        if (taskId) {
-                            window.location.href = `/ui/tasks/${taskId}`;
-                        }
+                    // 如果点击了按钮、链接、复选框或其标签，则不导航
+                    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('label')) {
+                        return;
+                    }
+
+                    // 如果批量模式启用并且点击在复选框列（class bulk-checkbox），也不导航
+                    if (document.getElementById('bulkControls') && document.getElementById('bulkControls').style.display === 'flex') {
+                        // clicking anywhere should still navigate except clicks directly on inputs, so we already checked inputs above
+                    }
+
+                    const taskId = this.dataset.id;
+                    if (taskId) {
+                        window.location.href = `/ui/tasks/${taskId}`;
                     }
                 });
             });

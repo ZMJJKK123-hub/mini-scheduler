@@ -13,6 +13,9 @@ from fastapi import Request
 import sqlite3
 from fastapi import Form
 from fastapi.responses import RedirectResponse
+import os
+from common.utils import next_run_times
+from fastapi.responses import JSONResponse
 
 templates = Jinja2Templates(directory="templates")
 
@@ -343,6 +346,26 @@ def get_execution_detail(execution_id: int):
     return execution
 
 
+@app.get('/api/cron/next')
+def api_cron_next(cron: str, n: int = 5):
+    try:
+        n = int(n)
+        if n <= 0 or n > 100:
+            raise ValueError('n must be 1..100')
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid parameter n"})
+
+    try:
+        times = next_run_times(cron, count=n)
+        return {"next_runs": times}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+
+# Deepseek generation API removed (feature deprecated)
+
+
 @app.get("/api/executions/{execution_id}")
 def api_execution_detail(execution_id: int):
     execution = get_execution(execution_id)
@@ -418,12 +441,20 @@ def ui_task_detail(task_id: int, request: Request):
     
     conn.close()
     
+    # 计算下次运行时间（如Cron表达式无效则忽略）
+    next_runs = None
+    try:
+        next_runs = next_run_times(task.get('cron', ''), count=5)
+    except Exception:
+        next_runs = None
+
     return templates.TemplateResponse(
         "task_detail.html",
         {
             "request": request,
             "task": task,
-            "executions": executions
+            "executions": executions,
+            "next_runs": next_runs
         }
     )
 

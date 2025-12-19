@@ -375,6 +375,9 @@
             display: flex;
             background: rgba(0, 0, 0, 0.5);
             border-bottom: 1px solid rgba(67, 97, 238, 0.3);
+            position: relative;
+            z-index: 10;
+            pointer-events: auto;
         }
 
         .log-tab {
@@ -1294,13 +1297,16 @@
 
         // 初始化标签页切换
         function initializeTabSwitching() {
-            const tabs = document.querySelectorAll('.log-tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const tabName = this.dataset.tab || 'stdout';
-                    showLogTab(tabName);
-                });
+            // 使用事件委托，以免子元素或图标阻止点击事件
+            const tabsContainer = document.querySelector('.logs-tabs');
+            if (!tabsContainer) return;
+
+            tabsContainer.addEventListener('click', function(e) {
+                const tabEl = e.target.closest('.log-tab');
+                if (!tabEl) return;
+                e.preventDefault();
+                const tabName = tabEl.dataset.tab || 'stdout';
+                showLogTab(tabName);
             });
         }
 

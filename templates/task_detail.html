@@ -67,6 +67,20 @@
                 <div class="label">最后执行:</div>
                 <div class="value">{{ task.last_run_at if task.last_run_at else "从未执行" }}</div>
             </div>
+            <div class="info-row">
+                <div class="label">下次运行:</div>
+                <div class="value">
+                    {% if next_runs %}
+                        <ul style="margin:0; padding-left: 18px;">
+                        {% for t in next_runs %}
+                            <li>{{ t }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <span style="color: #666;">无法解析Cron或无信息</span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="action-buttons" style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
