@@ -36,6 +36,21 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # 字段已存在，忽略
         
+        # 添加重试字段
+        try:
+            cursor.execute(
+                "ALTER TABLE tasks ADD COLUMN retry_count INTEGER DEFAULT 0"
+            )
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute(
+                "ALTER TABLE tasks ADD COLUMN max_retries INTEGER DEFAULT 3"
+            )
+        except sqlite3.OperationalError:
+            pass
+        
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS executions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,6 +64,28 @@ def init_db():
             FOREIGN KEY(task_id) REFERENCES tasks(id)
         )
         """)
+        
+        # 创建用户表
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            email TEXT,
+            full_name TEXT,
+            disabled BOOLEAN DEFAULT FALSE,
+            created_at TEXT NOT NULL
+        )
+        """)
+        
+        # 创建默认管理员用户（如果不存在）
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = ?", ("admin",))
+        if cursor.fetchone()[0] == 0:
+            now = datetime.now().isoformat()
+            cursor.execute(
+                "INSERT INTO users (username, password, email, full_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                ("admin", "admin123", "admin@example.com", "Admin User", now)
+            )
         
 def create_task(name:str,cron:str,command:str)->Task:
     with get_connection() as conn:
@@ -82,8 +119,134 @@ def list_tasks()->list[Task]:
         
         rows=cursor.execute("SELECT * FROM tasks").fetchall()
         
-        return [Task(**dict(row))for row in rows] 
+        return [Task(**dict(row))for row in rows]
+
+
+def search_tasks(query: str = "", status: str = "", limit: int = 20, offset: int = 0) -> tuple[list[Task], int]:
+    """搜索任务，返回 (任务列表, 总数)"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # 构建查询条件
+        conditions = []
+        params = []
+        
+        if query:
+            conditions.append("(name LIKE ? OR command LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
+        
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        # 获取总数
+        count_query = f"SELECT COUNT(*) as cnt FROM tasks WHERE {where_clause}"
+        cursor.execute(count_query, params)
+        total = cursor.fetchone()['cnt']
+        
+        # 获取分页数据
+        query_str = f"SELECT * FROM tasks WHERE {where_clause} ORDER BY id DESC LIMIT ? OFFSET ?"
+        cursor.execute(query_str, params + [limit, offset])
+        rows = cursor.fetchall()
+        
+        return [Task(**dict(row)) for row in rows], total
+
+
+def get_task_by_id(task_id: int) -> Task | None:
+    """根据 ID 获取任务"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            return Task(**dict(row))
+        return None
+
+
+def update_task(task_id: int, name: str = None, cron: str = None, command: str = None) -> bool:
+    """更新任务信息"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        
+        if cron is not None:
+            updates.append("cron = ?")
+            params.append(cron)
+        
+        if command is not None:
+            updates.append("command = ?")
+            params.append(command)
+        
+        if not updates:
+            return False
+        
+        params.append(task_id)
+        update_str = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(update_str, params)
+        conn.commit()
+        
+        return cursor.rowcount > 0 
+
+
+def increment_retry_count(task_id: int) -> int:
+    """增加任务重试计数，返回新的重试计数"""
+    conn = get_connection()
+    cursor = conn.cursor()
     
+    cursor.execute(
+        "UPDATE tasks SET retry_count = retry_count + 1 WHERE id = ?",
+        (task_id,)
+    )
+    conn.commit()
+    
+    # 获取新的重试计数
+    cursor.execute("SELECT retry_count FROM tasks WHERE id = ?", (task_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    return row['retry_count'] if row else 0
+
+
+def reset_retry_count(task_id: int):
+    """重置任务重试计数"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        "UPDATE tasks SET retry_count = 0 WHERE id = ?",
+        (task_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_task_retry_info(task_id: int) -> dict:
+    """获取任务重试信息"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        "SELECT retry_count, max_retries FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            "retry_count": row['retry_count'],
+            "max_retries": row['max_retries']
+        }
+    return {"retry_count": 0, "max_retries": 3}
 
 def try_mark_running(task_id: int, start_time: str) -> bool:
     """
@@ -183,6 +346,60 @@ def get_execution(execution_id: int):
         return None
 
     return dict(row)
+
+
+# 用户相关数据库操作
+def create_user_db(username: str, password: str, email: str = None, full_name: str = None) -> tuple[bool, str]:
+    """在数据库中创建用户"""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 检查用户是否已存在
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                return False, "用户已存在"
+            
+            now = datetime.now().isoformat()
+            cursor.execute(
+                "INSERT INTO users (username, password, email, full_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                (username, password, email or f"{username}@example.com", full_name or username, now)
+            )
+            
+            conn.commit()
+            return True, "创建成功"
+    except Exception as e:
+        return False, f"数据库错误: {str(e)}"
+
+
+def get_user_by_username(username: str):
+    """根据用户名获取用户"""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            row = cursor.execute(
+                "SELECT * FROM users WHERE username = ?",
+                (username,)
+            ).fetchone()
+            
+            if row:
+                return dict(row)
+            return None
+    except Exception:
+        return None
+
+
+def authenticate_user_db(username: str, password: str):
+    """验证用户登录"""
+    user = get_user_by_username(username)
+    if not user:
+        return False
+    
+    # 简单密码验证（生产环境应该使用哈希）
+    if user["password"] == password:
+        return user
+    
+    return False
 
 
 

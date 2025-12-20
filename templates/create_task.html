@@ -1069,26 +1069,22 @@
                 try {
                     // 收集表单数据
                     const formData = new FormData(form);
-                    const data = {
-                        name: formData.get('name'),
-                        cron: formData.get('cron'),
-                        command: formData.get('command')
-                    };
                     
-                    // 显示成功动画
-                    showSuccessAnimation();
+                    // 发送POST请求到后端
+                    const response = await fetch('/ui/tasks/create', {
+                        method: 'POST',
+                        body: formData
+                    });
                     
-                    // 在实际应用中，这里应该是真实的API调用
-                    // const response = await fetch('/ui/tasks/create', {
-                    //     method: 'POST',
-                    //     body: formData
-                    // });
-                    
-                    // if (response.ok) {
-                    //     showSuccessAnimation();
-                    // } else {
-                    //     throw new Error('创建失败');
-                    // }
+                    // 如果创建成功，后端会重定向；否则显示错误
+                    if (response.ok || response.status === 303 || response.redirected) {
+                        // 显示成功动画
+                        showSuccessAnimation();
+                    } else {
+                        // 获取错误信息
+                        const errorData = await response.text().catch(() => '创建失败');
+                        throw new Error(errorData || '创建失败');
+                    }
                     
                 } catch (error) {
                     console.error('提交失败:', error);

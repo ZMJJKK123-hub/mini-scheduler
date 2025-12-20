@@ -2,3 +2,7 @@ fastapi
 uvicorn
 redis
 croniter
+jinja2
+python-multipart
+python-jose[cryptography]
+PyJWT

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 | 任务调度系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: Inter, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+        .card{ background:white; padding:30px; border-radius:12px; width:100%; max-width:420px; }
+        .form-group{ margin-bottom:16px }
+        .form-input{ width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px }
+        .btn{ padding:10px 14px; border-radius:8px; background:#4361ee; color:white; border:none; cursor:pointer }
+        .link{ display:block; margin-top:12px; text-align:center }
+        .error{ color:#d9534f; margin-bottom:10px }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="margin-bottom:8px">注册新用户</h2>
+        <p style="color:#666; margin-bottom:16px">注册后可登录并管理任务</p>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form id="registerForm" action="/auth/register" method="post">
+            <div class="form-group">
+                <label>用户名</label>
+                <input class="form-input" name="username" required minlength="3">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input class="form-input" name="password" type="password" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input class="form-input" name="confirm" type="password" required minlength="6">
+            </div>
+            <button class="btn" type="submit">注册</button>
+        </form>
+        <a class="link" href="/login">已有账号？登录</a>
+    </div>
+</body>
+</html>

@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from common.models import Task
-from common.db import create_task, list_tasks, init_db
+from common.db import create_task, list_tasks, init_db, search_tasks, get_task_by_id, update_task
 import threading
 from scheduler.scheduler import run_scheduler
-from datetime import datetime
-from fastapi import HTTPException
+from datetime import datetime, timedelta
+from fastapi import HTTPException, Depends, Response
 from common.db import get_connection, create_execution, get_execution, list_executions_by_task
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
@@ -16,25 +16,159 @@ from fastapi.responses import RedirectResponse
 import os
 from common.utils import next_run_times
 from fastapi.responses import JSONResponse
+from config import logger
+from common.auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_user_from_bearer,
+    verify_token,
+    create_user,
+    Token,
+    User,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 templates = Jinja2Templates(directory="templates")
 
 app=FastAPI()
 
+
+# 全局认证中间件：除登录、文档和少数公开路径外，要求带 Bearer token
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    public_paths = [
+        "/login",
+        "/register",
+        "/auth/login",
+        "/auth/register",
+        "/auth/me",
+        "/",
+        "/openapi.json",
+        "/docs",
+        "/docs/oauth2-redirect",
+        "/favicon.ico",
+    ]
+
+    # Allow static-like prefixes
+    for p in ["/static", "/assets"]:
+        public_paths.append(p)
+
+    path = request.url.path
+    # If path is public, continue
+    if any(path == p or path.startswith(p + "/") for p in public_paths):
+        return await call_next(request)
+
+    # Check Authorization header or access_token cookie
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header:
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise ValueError()
+        except Exception:
+            return JSONResponse(status_code=401, content={"detail": "Invalid authorization header"})
+    else:
+        # Try cookie (allows browser redirects after login)
+        token = request.cookies.get("access_token")
+
+    if not token:
+        # UI requests -> redirect to login page
+        accept = request.headers.get("accept", "")
+        if path.startswith("/ui") or "text/html" in accept:
+            return RedirectResponse(url="/login")
+        return JSONResponse(status_code=401, content={"detail": "Missing authentication token"})
+
+    # Validate token
+    username = verify_token(token)
+    if not username:
+        accept = request.headers.get("accept", "")
+        if path.startswith("/ui") or "text/html" in accept:
+            return RedirectResponse(url="/login")
+        return JSONResponse(status_code=401, content={"detail": "Invalid or expired token"})
+
+    # attach user info to request.state if needed
+    request.state.user = username
+    return await call_next(request)
+
 @app.on_event("startup")
 def startup():
+    logger.info("应用启动中...")
     init_db()
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
+    logger.info("调度器已启动")
 
 @app.get("/")
 def health_check():
     return {"status": "ok"}
 
+# ==================== 身份验证路由 ====================
+
+@app.get("/login")
+def login_page(request: Request):
+    """显示登录页面"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register")
+def register_page(request: Request):
+    """显示注册页面"""
+    return templates.TemplateResponse("register.html", {"request": request})
+
+@app.post("/auth/login")
+async def login(response: Response, username: str = Form(...), password: str = Form(...)):
+    """用户登录"""
+    user = authenticate_user(username, password)
+    if not user:
+        logger.warning(f"登录失败: 用户名={username}")
+        raise HTTPException(
+            status_code=401,
+            detail="用户名或密码错误"
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": username}, expires_delta=access_token_expires
+    )
+    logger.info(f"用户登录成功: {username}")
+    # set cookie for browser-based navigation (HttpOnly)
+    resp = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    resp.set_cookie(key="access_token", value=access_token, path='/', httponly=True, samesite='lax')
+    return resp
+
+
+@app.post("/auth/register")
+async def register(request: Request, username: str = Form(...), password: str = Form(...), confirm: str = Form(...)):
+    """处理注册请求"""
+    if password != confirm:
+        return templates.TemplateResponse("register.html", {"request": request, "error": "两次密码不一致"})
+
+    ok, msg = create_user(username, password)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": msg})
+
+    # 注册成功，跳转到登录页
+    return RedirectResponse(url="/login", status_code=303)
+
+@app.get("/auth/me")
+async def get_me(current_user: User = Depends(get_current_user_from_bearer)):
+    """获取当前用户信息"""
+    return current_user
+
+@app.get("/auth/logout")
+def logout(response: Response):
+    """登出"""
+    # 清除 cookie
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(key="access_token", path="/")
+    return response
+
 class TaskCreateRequest(BaseModel):
     name: str
     cron: str
     command: str
+
 
 
 
@@ -377,13 +511,26 @@ def api_execution_detail(execution_id: int):
 
 
 @app.get("/ui/tasks")
-def ui_tasks(request: Request):
-    tasks = list_tasks()
+def ui_tasks(request: Request, q: str = "", status: str = "", page: int = 1):
+    """任务列表页面，支持搜索和分页"""
+    limit = 20
+    offset = (page - 1) * limit
+    
+    tasks, total = search_tasks(query=q, status=status, limit=limit, offset=offset)
+    total_pages = (total + limit - 1) // limit
+    
+    logger.info(f"查询任务列表: q={q}, status={status}, page={page}, 找到 {len(tasks)} 个任务")
+    
     return templates.TemplateResponse(
         "tasks.html",
         {
             "request": request,
-            "tasks": tasks
+            "tasks": tasks,
+            "query": q,
+            "status_filter": status,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total
         }
     )
 
@@ -397,7 +544,6 @@ def show_create_task_form(request: Request):
     )
 
 
-# 处理表单提交
 @app.post("/ui/tasks/create")
 def create_task_from_form(
     request: Request,
@@ -405,14 +551,19 @@ def create_task_from_form(
     cron: str = Form(...),
     command: str = Form(...)
 ):
-    # 调用已有的create_task函数
-    task = create_task(name, cron, command)
-    
-    # 重定向到任务列表
-    return RedirectResponse(
-        url=f"/ui/tasks/{task.id}",  # 或者 "/ui/tasks" 直接回到列表
-        status_code=303  # 303 See Other for POST-redirect-GET pattern
-    )
+    try:
+        # 调用已有的create_task函数
+        task = create_task(name, cron, command)
+        logger.info(f"创建任务成功: ID={task.id}, name={task.name}")
+        
+        # 重定向到任务列表
+        return RedirectResponse(
+            url=f"/ui/tasks/{task.id}",  # 或者 "/ui/tasks" 直接回到列表
+            status_code=303  # 303 See Other for POST-redirect-GET pattern
+        )
+    except Exception as e:
+        logger.error(f"创建任务失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/ui/tasks/{task_id}")
@@ -457,6 +608,48 @@ def ui_task_detail(task_id: int, request: Request):
             "next_runs": next_runs
         }
     )
+
+
+@app.get("/ui/tasks/{task_id}/edit")
+def show_edit_task_form(task_id: int, request: Request):
+    """显示编辑任务表单"""
+    task = get_task_by_id(task_id)
+    
+    if not task:
+        logger.warning(f"尝试编辑不存在的任务: ID={task_id}")
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return templates.TemplateResponse(
+        "edit_task.html",
+        {"request": request, "task": task}
+    )
+
+
+@app.post("/ui/tasks/{task_id}/update")
+def update_task_from_form(
+    task_id: int,
+    request: Request,
+    name: str = Form(...),
+    cron: str = Form(...),
+    command: str = Form(...)
+):
+    """更新任务"""
+    try:
+        task = get_task_by_id(task_id)
+        if not task:
+            logger.warning(f"尝试更新不存在的任务: ID={task_id}")
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        success = update_task(task_id, name=name, cron=cron, command=command)
+        if success:
+            logger.info(f"任务已更新: ID={task_id}, name={name}")
+            return RedirectResponse(url=f"/ui/tasks/{task_id}", status_code=303)
+        else:
+            logger.error(f"更新任务失败: ID={task_id}")
+            raise HTTPException(status_code=400, detail="Update failed")
+    except Exception as e:
+        logger.error(f"更新任务异常: ID={task_id}, error={str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 

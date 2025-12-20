@@ -89,6 +89,9 @@
                     立即执行
                 </button>
             </form>
+            <button class="btn" style="background: #4361ee; color: white;" onclick="window.location.href='/ui/tasks/{{ task.id }}/edit'">
+                ✏️ 编辑任务
+            </button>
             <form action="/tasks/{{ task.id }}/toggle" method="post">
                 <button type="submit" class="btn" style="background: {% if task.status == 'PAUSED' %}#38b000{% else %}#f8961e{% endif %}; color: white;"
                         onclick="return confirm('{% if task.status == 'PAUSED' %}恢复此任务？{% else %}暂停此任务？{% endif %}')">

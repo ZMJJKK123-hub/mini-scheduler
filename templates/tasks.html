@@ -697,11 +697,20 @@
                     <i class="fas fa-database"></i> {{ tasks|length }} 任务
                 </span>
             </div>
-            
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <a href="/register" class="btn btn-secondary" style="text-decoration:none;">注册</a>
+                    <button id="logoutBtn" class="btn" style="background:#e9ecef; color:#333;">登出</button>
+                </div>
             <button class="btn btn-secondary" onclick="location.reload()">
                 <i class="fas fa-sync-alt"></i> 刷新
             </button>
         </div>
+        <script>
+            document.getElementById('logoutBtn')?.addEventListener('click', function(){
+                // 调用后端登出 API，它会清除 cookie 并重定向
+                window.location.href = '/auth/logout';
+            });
+        </script>
 
         <!-- 统计卡片 -->
         <div class="stats-container">
@@ -748,10 +757,21 @@
 
         <!-- 操作栏 -->
         <div class="action-bar">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="搜索任务...">
-            </div>
+            <form method="get" style="display: flex; gap: 10px; flex: 1;">
+                <div class="search-box" style="flex: 1;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="q" placeholder="搜索任务名称或命令..." value="{{ query }}">
+                </div>
+                <select name="status" style="padding: 12px 15px; border: 2px solid var(--border-color); border-radius: 8px; background: white; cursor: pointer;">
+                    <option value="">所有状态</option>
+                    <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>活跃</option>
+                    <option value="RUNNING" {% if status_filter == 'RUNNING' %}selected{% endif %}>运行中</option>
+                    <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>失败</option>
+                    <option value="PAUSED" {% if status_filter == 'PAUSED' %}selected{% endif %}>暂停</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>待定</option>
+                </select>
+                <button type="submit" class="btn btn-secondary">搜索</button>
+            </form>
             
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="window.location.href='/ui/tasks/create'">
@@ -937,6 +957,35 @@
                     </tbody>
                 </table>
                 </form>
+                
+                <!-- 分页控件 -->
+                {% if total_pages > 1 %}
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; padding: 20px;">
+                    {% if page > 1 %}
+                    <a href="/ui/tasks?q={{ query }}&status={{ status_filter }}&page=1" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.9rem;">
+                        <i class="fas fa-chevron-left"></i> 首页
+                    </a>
+                    <a href="/ui/tasks?q={{ query }}&status={{ status_filter }}&page={{ page - 1 }}" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.9rem;">
+                        上一页
+                    </a>
+                    {% endif %}
+                    
+                    <span style="color: var(--gray-color); margin: 0 10px;">
+                        第 <strong>{{ page }}</strong> / <strong>{{ total_pages }}</strong> 页
+                        <span style="margin-left: 10px;">共 <strong>{{ total }}</strong> 个任务</span>
+                    </span>
+                    
+                    {% if page < total_pages %}
+                    <a href="/ui/tasks?q={{ query }}&status={{ status_filter }}&page={{ page + 1 }}" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.9rem;">
+                        下一页
+                    </a>
+                    <a href="/ui/tasks?q={{ query }}&status={{ status_filter }}&page={{ total_pages }}" class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.9rem;">
+                        末页 <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
                 {% endif %}
             </div>
         </div>

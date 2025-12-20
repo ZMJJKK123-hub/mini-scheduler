@@ -1,53 +1,242 @@
-# Cron 任务调度系统
+# Mini Scheduler - 任务调度系统
 
-## 📋 项目概述
-这是一个基于 FastAPI 的分布式 Cron 任务调度系统，提供完整的任务管理、调度执行和监控功能。系统支持 Web 界面和 REST API 接口，可以方便地创建、管理和监控定时任务。
+一个基于 FastAPI 的轻量级任务调度系统，支持 cron 表达式、任务监控、用户认证等功能。
 
-## ✨ 功能特性
+## 功能特性
 
-### 核心功能
-- **任务管理**：创建、查看、修改、删除定时任务
-- **Cron 表达式支持**：标准的 cron 表达式格式，支持预览下次执行时间
-- **任务调度**：后台调度器自动执行定时任务
-- **批量操作**：支持批量删除、暂停、强制执行任务
-- **执行记录**：查看任务执行历史记录和详情
-- **状态管理**：任务激活/暂停状态切换
-- **Web 界面**：友好的 Web 管理界面
-- **REST API**：完整的 API 接口支持
-- **数据清理**：自动清理旧的执行记录
+- ✅ **任务管理**: 创建、编辑、删除定时任务
+- ✅ **Cron 调度**: 支持标准的 cron 表达式
+- ✅ **实时监控**: 任务状态监控和执行日志
+- ✅ **用户认证**: JWT 身份验证和注册功能
+- ✅ **重试机制**: 失败任务自动重试
+- ✅ **搜索与分页**: 任务列表搜索和分页显示
+- ✅ **批量操作**: 支持批量删除、暂停、强制执行
+- ✅ **Web 界面**: 现代化的响应式 UI
+- ✅ **API 接口**: RESTful API 支持
 
-### 高级功能
-- **强制执行**：立即触发任务执行
-- **状态切换**：灵活的任务状态管理
-- **Cron 预览**：查看 cron 表达式的下次执行时间
-- **并发控制**：防止任务重复执行
-- **超时处理**：自动检测并处理超时任务
-- **Shell 命令支持**：执行任意 Shell 命令
+## 技术栈
 
-## 🏗️ 技术栈
+- **后端**: FastAPI, Uvicorn
+- **数据库**: SQLite
+- **调度**: croniter, threading
+- **前端**: Jinja2 模板, 原生 JavaScript
+- **认证**: JWT (jose)
+- **样式**: Font Awesome, 自定义 CSS
 
-### 后端
-- **框架**：FastAPI
-- **数据库**：SQLite
-- **Cron 解析**：croniter
-- **进程管理**：subprocess
-- **并发处理**：threading
+## 安装
 
-### 前端
-- **模板引擎**：Jinja2
-- **样式框架**：Bootstrap 5
-- **JavaScript**：原生 JS
+### 环境要求
 
-## 📁 项目结构
-cron-scheduler/
-├── app.py # 主应用文件 (FastAPI应用)
-├── common/ # 公共模块
-│ ├── init.py
-│ ├── db.py # 数据库操作
-│ ├── models.py # 数据模型
-│ └── utils.py # 工具函数
-├── scheduler/ # 调度器模块
-│ ├── init.py
+- Python 3.8+
+- pip
+
+### 安装步骤
+
+1. 克隆项目
+```bash
+git clone <repository-url>
+cd mini-scheduler
+```
+
+2. 创建虚拟环境
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# 或在 Windows: .venv\Scripts\activate
+```
+
+3. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+## 运行
+
+### 开发模式
+
+```bash
+python3 -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### 生产模式
+
+```bash
+python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+访问 http://127.0.0.1:8000 打开应用。
+
+## 使用
+
+### 首次使用
+
+1. 打开浏览器访问 http://127.0.0.1:8000
+2. 使用演示账号登录：
+   - 用户名: `admin`
+   - 密码: `admin123`
+3. 或点击"注册"创建新账号
+
+### 创建任务
+
+1. 在任务列表页点击"新建任务"
+2. 填写任务信息：
+   - 名称: 任务的显示名称
+   - Cron 表达式: 定时规则 (例如: `*/5 * * * *` 每5分钟执行)
+   - 命令: 要执行的 shell 命令
+
+### 任务管理
+
+- **执行**: 立即执行任务
+- **暂停/恢复**: 控制任务调度状态
+- **编辑**: 修改任务信息
+- **删除**: 删除任务及其执行记录
+
+### 搜索和过滤
+
+- 使用搜索框按名称或命令搜索
+- 使用状态标签过滤任务
+
+## API 文档
+
+启动服务后访问 http://127.0.0.1:8000/docs 查看完整的 API 文档。
+
+### 主要 API 端点
+
+#### 认证
+- `POST /auth/login` - 用户登录
+- `POST /auth/register` - 用户注册
+- `GET /auth/me` - 获取当前用户信息
+
+#### 任务管理
+- `GET /ui/tasks` - 任务列表页面
+- `POST /ui/tasks/create` - 创建任务
+- `GET /ui/tasks/{id}` - 任务详情
+- `POST /ui/tasks/{id}/update` - 更新任务
+- `POST /tasks/{id}/run` - 强制执行任务
+
+#### 批量操作
+- `POST /tasks/bulk/delete` - 批量删除
+- `POST /tasks/bulk/pause` - 批量暂停
+- `POST /tasks/bulk/force_run` - 批量强制执行
+
+## 数据库
+
+项目使用 SQLite 数据库，文件位于项目根目录的 `scheduler.db`。
+
+### 数据库表结构
+
+- `tasks`: 任务表
+- `executions`: 执行记录表
+- `users`: 用户表 (演示用，生产环境请使用真实数据库)
+
+## 配置
+
+### 环境变量
+
+- `SECRET_KEY`: JWT 密钥 (默认随机生成)
+
+### 日志
+
+日志文件位于 `logs/scheduler.log`，包含调度器和任务执行信息。
+
+## 开发
+
+### 项目结构
+
+```
+mini-scheduler/
+├── api/
+│   ├── main.py          # FastAPI 应用主文件
+│   └── __init__.py
+├── common/
+│   ├── auth.py          # 认证模块
+│   ├── db.py            # 数据库操作
+│   ├── models.py        # 数据模型
+│   └── utils.py         # 工具函数
+├── scheduler/
+│   ├── scheduler.py     # 调度器核心
+│   └── __init__.py
+├── templates/           # Jinja2 模板
+├── tests/               # 测试文件
+├── worker/              # 工作进程
+├── config.py            # 配置
+├── requirements.txt     # 依赖
+└── README.md           # 本文件
+```
+
+### 添加新功能
+
+1. 在 `api/main.py` 添加路由
+2. 在 `common/db.py` 添加数据库操作
+3. 在 `templates/` 添加对应模板
+4. 更新 `requirements.txt` 如果需要新依赖
+
+## 测试
+
+运行测试：
+
+```bash
+python3 -m pytest tests/
+```
+
+## 部署
+
+### 使用 Docker
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### 生产部署注意事项
+
+1. 使用生产级数据库 (PostgreSQL/MySQL)
+2. 配置 HTTPS
+3. 设置环境变量
+4. 使用反向代理 (nginx)
+5. 配置日志轮转
+6. 设置监控和告警
+
+## 故障排除
+
+### 常见问题
+
+1. **端口占用**: 确保 8000 端口未被占用
+2. **权限问题**: 确保有执行 shell 命令的权限
+3. **数据库错误**: 检查 `scheduler.db` 文件权限
+4. **登录问题**: 清除浏览器缓存或使用无痕模式
+
+### 日志查看
+
+```bash
+tail -f logs/scheduler.log
+```
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+### 开发规范
+
+- 使用 Black 格式化代码
+- 添加适当的测试
+- 更新文档
+
+## 许可证
+
+MIT License
+
+## 联系
+
+如有问题请提交 Issue 或联系维护者。
 │ └── scheduler.py # 任务调度器
 ├── templates/ # HTML模板文件
 │ ├── base.html # 基础模板
