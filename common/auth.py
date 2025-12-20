@@ -2,7 +2,7 @@ from common.db import create_user_db, get_user_by_username, authenticate_user_db
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, status, Request
 
@@ -48,7 +48,7 @@ def verify_token(token: str) -> Optional[str]:
         if username is None:
             return None
         return username
-    except JWTError:
+    except jwt.DecodeError:
         return None
 
 # 用户数据库（已迁移到 SQLite 数据库）

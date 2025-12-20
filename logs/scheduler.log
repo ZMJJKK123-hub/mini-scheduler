@@ -316,3 +316,10 @@ TypeError: Task.__init__() got an unexpected keyword argument 'retry_count'
 2025-12-20 17:05:04,976 - scheduler - INFO - å¼€å§‹æ‰§è¡Œä»»åŠ¡ 1 (test): echo hi
 
 2025-12-20 17:05:04,985 - scheduler - INFO - ä»»åŠ¡ 1 (test) æ‰§è¡ŒæˆåŠŸ
+2025-12-20 18:35:00,477 - scheduler - INFO - Ó¦ÓÃÆô¶¯ÖĞ...
+2025-12-20 18:35:00,485 - scheduler - INFO - ÈÎÎñµ÷¶ÈÆ÷ÒÑÆô¶¯
+2025-12-20 18:35:00,486 - scheduler - INFO - µ÷¶ÈÆ÷ÒÑÆô¶¯
+2025-12-20 18:35:00,488 - scheduler - INFO - ´¥·¢ÈÎÎñÖ´ĞĞ: ID=1, name=test, status=ACTIVE
+2025-12-20 18:35:00,497 - scheduler - INFO - ¿ªÊ¼Ö´ĞĞÈÎÎñ 1 (test): echo hi
+
+2025-12-20 18:35:00,544 - scheduler - INFO - ÈÎÎñ 1 (test) Ö´ĞĞ³É¹¦
